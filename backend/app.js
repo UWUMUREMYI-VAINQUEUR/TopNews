@@ -18,6 +18,8 @@ const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const { pool } = require('./config/db'); // adjust path if needed
+
 
 
 
@@ -49,6 +51,18 @@ app.use('/api/profile', profileRoutes);
 
 
 app.use('/api/users', userRoutes);
+app.get("/api", (req, res) => {
+  res.json({ message: "API is working!" });
+});
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({ databaseTime: result.rows[0].now });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 app.get('/', (req, res) => {
   res.send('News Blog API running...');
