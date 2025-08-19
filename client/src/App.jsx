@@ -7,7 +7,7 @@ import PostDetails from "./pages/PostDetails";
 import EditProfile from "./pages/EditProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import NewsDetail from './pages/NewsDetail';
+
 import Notifications from "./pages/Notifications";
 import CreatePost from "./pages/CreatePost";
 import SearchResults from './pages/SearchResults';
@@ -30,7 +30,7 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/post/:id" element={<PostDetails />} />
-          <Route path="/news/:id" element={<NewsDetail />} />
+          
           <Route path="/search" element={<SearchResults />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

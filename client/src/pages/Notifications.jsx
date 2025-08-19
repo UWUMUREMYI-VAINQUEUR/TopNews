@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
+import { getNotifications, markNotificationRead } from "../services/api"; // ✅ use your API service
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -9,13 +9,7 @@ const Notifications = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        const res = await axios.get("http://localhost:5000/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
+        const res = await getNotifications(); // ✅ now uses VITE_API_URL
         setNotifications(res.data);
       } catch (err) {
         console.error("Error fetching notifications:", err);
@@ -29,12 +23,7 @@ const Notifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        "http://localhost:5000/api/notifications/read",
-        { notification_id: id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await markNotificationRead({ notification_id: id }); // ✅ use API wrapper
 
       setNotifications((prev) =>
         prev.map((n) =>
@@ -50,7 +39,9 @@ const Notifications = () => {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Notifications</h1>
+      <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+        Notifications
+      </h1>
 
       {notifications.length === 0 ? (
         <p className="text-gray-700 dark:text-gray-300">No notifications yet.</p>
@@ -58,19 +49,23 @@ const Notifications = () => {
         <ul className="space-y-3">
           {notifications.map((n) => {
             const fromUser = n.sender_name || "Unknown";
-            const senderId = n.data.from_user_id; // optional if you want profile link
+            const senderId = n.data.from_user_id;
             const createdAt = new Date(n.created_at).toLocaleString();
 
             return (
               <li
                 key={n.notification_id}
                 className={`p-4 rounded-lg shadow transition-colors ${
-                  n.read ? "bg-gray-100 dark:bg-gray-800" : "bg-yellow-100 dark:bg-yellow-700"
+                  n.read
+                    ? "bg-gray-100 dark:bg-gray-800"
+                    : "bg-yellow-100 dark:bg-yellow-700"
                 }`}
               >
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{n.data.message}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {n.data.message}
+                    </p>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                       From:{" "}
                       {senderId ? (
@@ -92,7 +87,9 @@ const Notifications = () => {
                       </Link>{" "}
                       | Comment ID: {n.data.comment_id}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{createdAt}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {createdAt}
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     {!n.read && (

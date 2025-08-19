@@ -7,19 +7,24 @@ export default function useNotifications(user) {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // load saved notifications
+    // load saved notifications from API
     async function load() {
       try {
         const res = await getNotifications();
         setNotifications(res.data);
-      } catch (err) { /* ignore */ }
+      } catch (err) {
+        console.error("Error loading notifications:", err);
+      }
     }
     load();
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    const s = io('http://localhost:5000', { transports: ['websocket'] });
+
+    // ✅ use env variable for socket URL
+    const backendUrl = import.meta.env.VITE_API_URL; 
+    const s = io(backendUrl, { transports: ['websocket'] });
     setSocket(s);
 
     s.on('connect', () => {
