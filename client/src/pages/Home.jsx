@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import {
   FaBusinessTime, FaLaptopCode, FaFilm, FaMusic, FaHeartbeat,
   FaChartLine, FaFutbol, FaShieldAlt, FaUserPlus, FaUserCheck
 } from 'react-icons/fa';
+import {
+  fetchCategories,
+  fetchPosts,
+  followUser,
+  unfollowUser,
+} from '../services/api'; // ✅ use API service
 
 const categoryIcons = {
   business: <FaBusinessTime />,
@@ -26,74 +31,74 @@ const Home = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const limit = 6; // posts per page
+  const limit = 6;
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories
+  // ✅ Fetch categories
   useEffect(() => {
-    axios.get('http://localhost:5000/api/categories')
-      .then(res => setCategories(res.data))
-      .catch(err => console.error(err));
+    async function loadCategories() {
+      try {
+        const res = await fetchCategories();
+        setCategories(res.data);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    }
+    loadCategories();
   }, []);
 
-  // Load posts function
+  // ✅ Load posts function
   const loadPosts = async (reset = false) => {
     if (loading) return;
     setLoading(true);
 
     const offset = reset ? 0 : page * limit;
-    let url = `http://localhost:5000/api/posts?limit=${limit}&offset=${offset}`;
-    if (selectedCategory) url += `&category=${selectedCategory}`;
-    if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+    let query = `?limit=${limit}&offset=${offset}`;
+    if (selectedCategory) query += `&category=${selectedCategory}`;
+    if (searchTerm) query += `&search=${encodeURIComponent(searchTerm)}`;
 
     try {
-      const res = await axios.get(url);
+      const res = await fetchPosts(query);
       if (reset) setPosts(res.data);
       else setPosts(prev => [...prev, ...res.data]);
 
       setHasMore(res.data.length === limit);
-      if (reset) setPage(1);
-      else setPage(prev => prev + 1);
+      setPage(reset ? 1 : prev => prev + 1);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching posts:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load posts on category change
+  // ✅ Load posts on category change
   useEffect(() => {
-    loadPosts(true); // reset posts
+    loadPosts(true);
   }, [selectedCategory]);
 
+  // ✅ Search submit
   const onSearchSubmit = (e) => {
     e.preventDefault();
     loadPosts(true);
   };
 
-  // Follow / Unfollow
+  // ✅ Follow / Unfollow
   const handleFollow = async (authorId) => {
-    const token = localStorage.getItem('token');
     try {
-      await axios.post(
-        'http://localhost:5000/api/followers/follow',
-        { followed_user_id: authorId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await followUser({ followed_user_id: authorId });
       setPosts(prev => prev.map(p => p.author_id === authorId ? { ...p, followed: true } : p));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Follow error:', err);
+    }
   };
 
   const handleUnfollow = async (authorId) => {
-    const token = localStorage.getItem('token');
     try {
-      await axios.post(
-        'http://localhost:5000/api/followers/unfollow',
-        { followed_user_id: authorId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await unfollowUser({ followed_user_id: authorId });
       setPosts(prev => prev.map(p => p.author_id === authorId ? { ...p, followed: false } : p));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Unfollow error:', err);
+    }
   };
 
   return (
