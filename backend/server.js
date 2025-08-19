@@ -1,25 +1,37 @@
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
-const socketio = require('socket.io');
+const { Server } = require('socket.io');
 const { notificationSocket } = require('./sockets/notificationSocket');
 
-// Render assigns a PORT automatically via process.env.PORT
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 const server = http.createServer(app);
 
-const io = socketio(server, {
+// allow both prod and local (optional second prod via FRONTEND_URL_2)
+const allowedOrigins = [
+  process.env.FRONTEND_URL,      // e.g. https://topnews-frontend.onrender.com
+  process.env.FRONTEND_URL_2,    // optional second domain if you ever need it
+  'http://localhost:5173'        // local dev
+].filter(Boolean);
+
+const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || '*', // Allow your deployed frontend
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser clients
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Not allowed by CORS (socket.io): ${origin}`));
+    },
+    methods: ['GET', 'POST'],
     credentials: true,
   },
 });
 
-// Initialize socket events
+// wire up your socket events
 notificationSocket(io);
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports = { io, server };

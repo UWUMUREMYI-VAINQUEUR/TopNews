@@ -5,9 +5,6 @@ const app = express();
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const postSearchRoutes = require('./routes/postSearchRoutes');
-
-
-
 const commentRoutes = require('./routes/commentRoutes');
 const likeRoutes = require('./routes/likeRoutes');
 const followRoutes = require('./routes/followRoutes');
@@ -18,26 +15,37 @@ const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const profileRoutes = require('./routes/profileRoutes');
-const { pool } = require('./config/db'); // adjust path if needed
 
+const { pool } = require('./config/db');
 
+// same allowlist as server.js
+const allowedOrigins = [
+  process.env.FRONTEND_URL,      // e.g. https://topnews-frontend.onrender.com
+  process.env.FRONTEND_URL_2,    // optional
+  'http://localhost:5173'        // local dev
+].filter(Boolean);
 
-
-// CORS middleware: allow your frontend origin
+// CORS (don’t use "*" with credentials)
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Not allowed by CORS (http): ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true, // only needed if you use cookies; fine to leave true
 }));
+// handle preflight
+app.options('*', cors());
 
+// body parsing
+app.use(express.json({ limit: '10mb' }));
 
-
-// Body parser middleware
-app.use(express.json());
+// routes
 app.use('/api/posts/search', postSearchRoutes);
 app.use('/api/posts', postRoutes);
 
-// Routes
 app.use('/api/tags', tagRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/auth', authRoutes);
@@ -48,24 +56,20 @@ app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/profile', profileRoutes);
-
-
 app.use('/api/users', userRoutes);
-app.get("/api", (req, res) => {
-  res.json({ message: "API is working!" });
-});
-app.get("/api/test-db", async (req, res) => {
+
+// health checks
+app.get('/api', (req, res) => res.json({ message: 'API is working!' }));
+
+app.get('/api/test-db', async (req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({ databaseTime: result.rows[0].now });
+    const { rows } = await pool.query('SELECT NOW()');
+    res.json({ databaseTime: rows[0].now });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-
-app.get('/', (req, res) => {
-  res.send('News Blog API running...');
-});
+app.get('/', (req, res) => res.send('News Blog API running...'));
 
 module.exports = app;
