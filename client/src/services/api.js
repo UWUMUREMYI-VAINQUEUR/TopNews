@@ -18,7 +18,9 @@ export const searchPosts = (params) => API.get('/posts/search', { params });
 export const getPostsByAuthor = (userId) => API.get(`/posts/author/${userId}`);
 export const getPost = (id) => API.get(`/posts/${id}`);
 export const createPost = (data) => API.post('/posts', data);
-export const fetchPosts = () => API.get('/posts');
+
+// 🔥 FIXED: now accepts params (query string)
+export const fetchPosts = (query = '') => API.get(`/posts${query}`);
 
 export const getLikesDislikes = (id) => API.get(`/posts/${id}/likes-dislikes-count`);
 export const getUserReaction = (id) => API.get(`/posts/${id}/user-reaction`);

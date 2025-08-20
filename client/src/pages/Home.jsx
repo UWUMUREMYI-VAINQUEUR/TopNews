@@ -58,12 +58,12 @@ const Home = () => {
     if (searchTerm) query += `&search=${encodeURIComponent(searchTerm)}`;
 
     try {
-      const res = await fetchPosts(query);
+      const res = await fetchPosts(query || '');  // ✅ fixed
       if (reset) setPosts(res.data);
       else setPosts(prev => [...prev, ...res.data]);
 
       setHasMore(res.data.length === limit);
-      setPage(reset ? 1 : prev => prev + 1);
+      setPage(prevPage => reset ? 1 : prevPage + 1); // ✅ fixed
     } catch (err) {
       console.error('Error fetching posts:', err);
     } finally {

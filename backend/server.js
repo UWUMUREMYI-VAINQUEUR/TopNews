@@ -8,26 +8,25 @@ const PORT = process.env.PORT || 10000;
 
 const server = http.createServer(app);
 
-// allow both prod and local (optional second prod via FRONTEND_URL_2)
+// Socket.io CORS (matches backend)
 const allowedOrigins = [
-  process.env.FRONTEND_URL,      // e.g. https://topnews-frontend.onrender.com
-  process.env.FRONTEND_URL_2,    // optional second domain if you ever need it
-  'http://localhost:5173'        // local dev
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL_2
 ].filter(Boolean);
 
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow non-browser clients
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`Not allowed by CORS (socket.io): ${origin}`));
+      return callback(new Error(`Socket.io CORS not allowed: ${origin}`));
     },
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
+    methods: ['GET','POST'],
+    credentials: true
+  }
 });
 
-// wire up your socket events
+// Initialize notifications
 notificationSocket(io);
 
 server.listen(PORT, () => {
