@@ -1,14 +1,14 @@
-// backend/controllers/authController.js
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { send2FACode } = require('../services/mailService');
 require('dotenv').config();
 
-let tempVerificationCodes = {}; // In-memory store for 2FA codes (use Redis in prod)
+// Store code + expiry time
+let tempVerificationCodes = {};
 
-// Helper: Generate 6-digit code
-const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateCode = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 // =================== SIGNUP ===================
 exports.signup = async (req, res) => {
@@ -19,31 +19,29 @@ exports.signup = async (req, res) => {
   }
 
   try {
-    // Check if user exists
     const userCheck = await db.query(
       'SELECT * FROM users WHERE email=$1 OR phone=$2 OR username=$3',
       [email, phone, username]
     );
 
     if (userCheck.rows.length > 0) {
-      return res
-        .status(400)
-        .json({ message: 'User with email/phone/username already exists' });
+      return res.status(400).json({ message: 'User with email/phone/username already exists' });
     }
 
-    // Generate and store 2FA code
     const code = generateCode();
-    tempVerificationCodes[email] = code;
 
-    // Send verification email
+    // Store code with expiry (10 minutes)
+    tempVerificationCodes[email] = {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+
     await send2FACode(email, code);
 
-    res.json({
-      message: 'Verification code sent to email. Please verify to complete signup.',
-    });
+    res.json({ message: 'Verification code sent to email. Please verify to complete signup.' });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
@@ -55,7 +53,21 @@ exports.verify2FA = async (req, res) => {
     return res.status(400).json({ message: 'All fields are required' });
   }
 
-  if (tempVerificationCodes[email] !== code) {
+  const record = tempVerificationCodes[email];
+
+  // Check code exists
+  if (!record) {
+    return res.status(400).json({ message: 'No verification code found. Please sign up again.' });
+  }
+
+  // Check expiry
+  if (Date.now() > record.expiresAt) {
+    delete tempVerificationCodes[email];
+    return res.status(400).json({ message: 'Verification code expired. Please sign up again.' });
+  }
+
+  // Check code matches
+  if (record.code !== code) {
     return res.status(400).json({ message: 'Invalid verification code' });
   }
 
@@ -63,8 +75,9 @@ exports.verify2FA = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await db.query(
-      `INSERT INTO users (email, phone, username, password_hash) 
-       VALUES ($1, $2, $3, $4) RETURNING id, email, username`,
+      `INSERT INTO users (email, phone, username, password_hash)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, email, username, role`,
       [email, phone, username, hashedPassword]
     );
 
@@ -75,6 +88,7 @@ exports.verify2FA = async (req, res) => {
         id: newUser.rows[0].id,
         email: newUser.rows[0].email,
         username: newUser.rows[0].username,
+        role: newUser.rows[0].role,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -113,7 +127,7 @@ exports.login = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, username: user.username },
+      { id: user.id, email: user.email, username: user.username, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
